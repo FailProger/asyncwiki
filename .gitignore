@@ -52,6 +52,8 @@ coverage.xml
 cover/
 logs/
 .logs/
+
+# Test files
 test*.*
 
 # Translations

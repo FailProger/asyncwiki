@@ -316,7 +316,7 @@ class WikiWebSearcher:
 
         table = content.find("table", class_="infobox")
         if table:
-            table.replace_with()
+            table.replace_with("")
 
         first_p = content.find("p")
 

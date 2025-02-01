@@ -91,7 +91,7 @@ class WikiSearchParams:
         self,
         mode: int = WPSearchModes.default,
         priority: int = WPSearchPriority.content,
-        query_treatment: int = WPQueryTreatments.without,
+        query_treatment: int = WPQueryTreatments.default,
         db_search: int = WPDBSearch.yes,
         db_search_by_url: int = WPDBSearchByURL.no,
         number_of_results: int = 1
