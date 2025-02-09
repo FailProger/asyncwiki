@@ -1,9 +1,11 @@
+from typing import Union
+
 from bs4 import BeautifulSoup
 from bs4.element import PageElement, ResultSet
 
 from ..types import WikiSimpleResult
 from ..tuples import ContentSups
-from ..config import wiki_summary_limit
+from ..config import wiki_summary_cut_len
 
 
 __all__ = (
@@ -14,7 +16,7 @@ __all__ = (
 )
 
 
-def get_all_sup_in_p(p: PageElement | BeautifulSoup, index: int) -> ContentSups:
+def get_all_sup_in_p(p: Union[PageElement, BeautifulSoup], index: int) -> ContentSups:
     """
     Searches for extra characters in a paragraph.
 
@@ -81,7 +83,7 @@ def wiki_text_cuter(text: str) -> str:
     if len(text) == 0:
         return text
 
-    sign = text.find("\n", wiki_summary_limit)
+    sign = text.find("\n", wiki_summary_cut_len)
 
     if sign == -1:
         sign = text.find("\n")

@@ -87,6 +87,7 @@ class WikiSearchParams:
                               also will be added 5 advanced results).
     """
 
+    # Magic methods
     def __init__(
         self,
         mode: int = WPSearchModes.default,

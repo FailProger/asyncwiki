@@ -10,9 +10,7 @@ __all__ = (
     "FAST_SCRAPER",
     "API_SCRAPER",
     "DB",
-    "wiki_logger",
-    "LogTimer",
-    "WikiLogger"
+    "wiki_logger"
 )
 
 
@@ -32,10 +30,12 @@ class LogTimer:
     # Sign start with time will be round.
     _ndigits: int = 3
 
+    # Magic methods
     def __init__(self) -> None:
         self.__start_time = round(_perf_counter(), self._ndigits)
         self.__result = None
 
+    # Getters
     @property
     def start_time(self) -> float:
         return self.__start_time
@@ -48,6 +48,7 @@ class LogTimer:
         else:
             raise RuntimeError("Timer not stopped")
 
+    # Main methods
     def stop(self) -> float:
         """
         Stop timer amd return result.
@@ -72,6 +73,7 @@ class WikiLogger:
 
     __is_one = None
 
+    # Magic methods
     def __new__(cls, *args, **kwargs):
         """Blocking to create new items"""
 
@@ -93,6 +95,7 @@ class WikiLogger:
 
         self.setup(CRITICAL)  # Disable all loggers
 
+    # Getters
     @property
     def wiki(self) -> Logger:
         return self.__wiki
@@ -113,7 +116,7 @@ class WikiLogger:
     def db(self) -> Logger:
         return self.__db
 
-    # Function of setup loggers
+    # Main methods
     def setup(self, *params: int) -> None:
         """
         Enable loggers of WikiSearcher
@@ -175,6 +178,7 @@ class WikiLogger:
                 self.fast_scraper.setLevel(param)
                 self.api_scraper.setLevel(param)
 
+    # Class methods
     @classmethod
     def change_ndigits(cls, ndigits: int) -> None:
         """

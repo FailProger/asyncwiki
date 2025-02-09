@@ -1,3 +1,5 @@
+from typing import Union, Optional, Any, Coroutine, Callable
+
 from sqlalchemy.engine.url import URL
 from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
@@ -10,11 +12,11 @@ from sqlalchemy.ext.asyncio import (
 from .tables import base_table_class
 from .orm import WikiDBOrm
 
-from ..logger import wiki_logger
+from ..loggers import wiki_logger
 
 
 __all__ = (
-    "WikiDB"
+    "WikiDB",
 )
 
 
@@ -22,23 +24,36 @@ class WikiDB:
     """
     Engine for work with database. Need for connect, create, drop database and create ORM session.
 
+    Note:
+        You can indicate :code:`db_url` or :code:`wiki_db` for connect to database.
+
     Args:
         url: SQLAlchemy URL for connect to database.
+        engine: Your :code:`AsyncEngine` for connect to database.
         drop: Before creating all tables (if exists) drop database.
         echo: Logging of SQLAlchemy database engine.
         kwargs: Advanced params for :code:`AsyncEngine`.
+
+    Raises:
+        ValueError: if url and engine not be indicated.
     """
 
+    # Magic methods
     def __init__(
             self,
-            url: str | URL,
+            *,
+            url: Optional[Union[str, URL]] = None,
+            engine: Optional[AsyncEngine] = None,
             drop: bool = False,
             echo: bool = False,
-            **kwargs
+            **kwargs: Any
     ) -> None:
 
+        if url is None and engine is None:
+            raise ValueError("At least one of the parameters should be indicated: url or engine")
+
         self.__url = url
-        self.__engine = create_async_engine(self.__url, echo=echo, **kwargs)
+        self.__engine = create_async_engine(self.__url, echo=echo, **kwargs) if engine is None else engine
         self.__session_maker = async_sessionmaker(
             bind=self.__engine,
             class_=AsyncSession,
@@ -49,8 +64,9 @@ class WikiDB:
         self.__db_configured = False
         self.__db_drop_param = drop
 
+    # Getters
     @property
-    def url(self) -> str | URL:
+    def url(self) -> Union[str, URL]:
         return self.__url
 
     @property
@@ -70,6 +86,7 @@ class WikiDB:
 
         return self.__session_maker()
 
+    # Main methods
     def orm_decorator(self):
         """
         Decorator for connect to database.
@@ -91,9 +108,10 @@ class WikiDB:
             Decorator function
         """
 
-        def decor(func):
-            async def wrapper(*args, **kwargs):
-                await self.setup_db() if self.__db_configured is False else ...
+        def decor(func) -> Callable[[tuple[Any, ...], dict[str, Any]], Coroutine[Any, Any, Any]]:
+            async def wrapper(*args, **kwargs) -> Coroutine[Any, Any, Any]:
+                if self.__db_configured is False:
+                    await self.setup_db()
 
                 async with WikiDBOrm(self.session) as orm:
                     kwargs["orm"] = orm

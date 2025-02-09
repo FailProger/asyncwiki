@@ -1,8 +1,8 @@
-from .wikiDBSearcher import WikiDBSearcher
-from .wikiWebSearcher import WikiWebSearcher
+from .web_searcher import WikiWebSearcher
+from .db_searcher import WikiDBSearcher
 
 
 __all__: tuple[str, ...] = (
-    "WikiDBSearcher",
-    "WikiWebSearcher"
+    "WikiWebSearcher",
+    "WikiDBSearcher"
 )

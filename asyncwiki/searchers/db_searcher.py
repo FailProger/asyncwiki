@@ -1,3 +1,5 @@
+from typing import Union, Optional, Any
+
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import DBAPIError
 
@@ -7,13 +9,11 @@ from ..database.tables import WikiDBPages
 from ..types import WikiResult, WikiSimpleResult, WikiQuery
 from ..params import WPSearchModes, WikiSearchParams
 
-from ..exc import WikiDBPageNotFound
-
-from ..logger import wiki_logger, LogTimer
+from ..loggers import wiki_logger, LogTimer
 
 
 __all__ = (
-    "WikiDBSearcher"
+    "WikiDBSearcher",
 )
 
 
@@ -21,36 +21,56 @@ class WikiDBSearcher:
     """
     Search page by title in database and save founded by scraper pages in it.\n
 
+    Note:
+        You can indicate :code:`db_url` or :code:`wiki_db` for connect to database.
+
     Args:
         db_url: SQLAlchemy URL for connect to database or your :code:`WikiDB` object.
+        wiki_db: Your :code:`WikiDB` object for connect to database.
         drop_db: Before creating all tables (if exists) drop database.
         db_echo: Logging of SQLAlchemy database engine.
         kwargs: Advanced params for :code:`WikiDB`.
+
+    Raises:
+        ValueError: if db_url and wiki_db not be indicated.
     """
 
+    # Magic methods
     def __init__(
             self,
-            db_url: str | URL | WikiDB,
+            *,
+            db_url: Optional[Union[str, URL]] = None,
+            wiki_db: Optional[WikiDB] = None,
             drop_db: bool = False,
             db_echo: bool = False,
-            **kwargs
+            **kwargs: Any
     ) -> None:
 
-        self.__db_engine: WikiDB = db_url if type(db_url) is WikiDB else WikiDB(db_url, drop_db, db_echo, **kwargs)
+        if db_url is None and wiki_db is None:
+            raise ValueError("At least one of the parameters should be indicated: db_url or wiki_db")
+
+        self.__db_engine: WikiDB = wiki_db if wiki_db else WikiDB(
+            url=db_url,
+            drop=drop_db,
+            echo=db_echo,
+            **kwargs
+        )
 
         # Create functions with WikiDB decorator for receiving ORM connection.
         self.__search_func = self.__db_engine.orm_decorator()(self.__search)
         self.__save_func = self.__db_engine.orm_decorator()(self.__save_result)
 
+    # Getters
     @property
     def db_engine(self) -> WikiDB:
         return self.__db_engine
 
     @property
-    def db_url(self):
+    def db_url(self) -> Union[str, URL]:
         return self.__db_engine.url
 
-    async def setup_db(self):
+    # Main methods
+    async def setup_db(self) -> None:
         """
         Make first database setup: if you need drop database and create all tables if exists.
 
@@ -66,12 +86,13 @@ class WikiDBSearcher:
 
     async def search(
             self,
-            query: str | WikiQuery,
+            query: Union[str, WikiQuery],
             lang: str = "en",
             search_params: WikiSearchParams = WikiSearchParams()
-    ) -> WikiResult:
+    ) -> Union[WikiResult, None]:
         """
         Try to find page in database.
+        Saves result of searching to the database if most of the information has been find.
 
         Args:
             query: Query for searching in Wikipedia
@@ -81,6 +102,9 @@ class WikiDBSearcher:
         Returns:
             Page title, link, summary (first :code:`n` paragraphs) and list of additional
             results (pages title and link).
+
+        Raises:
+            WikiDBPageNotFound: If searcher not found page in database.
         """
 
         return await self.__search_func(query, lang, search_params)
@@ -103,15 +127,16 @@ class WikiDBSearcher:
 
         return await self.__save_func(query, result)
 
+    # Class methods
     @classmethod
     async def __search(
             cls,
-            query: str | WikiQuery,
+            query: Union[str, WikiQuery],
             lang: str = "en",
             search_params: WikiSearchParams = WikiSearchParams(),
             *,
             orm: WikiDBOrm,
-    ) -> WikiResult:
+    ) -> Union[WikiResult, None]:
         """
         Main search function. Saves result of searching to the database if most of the information has been find.
         Used with WikiDB ORM decorator for connect to database.
@@ -125,6 +150,9 @@ class WikiDBSearcher:
         Returns:
             Page title, link, summary (first :code:`n` paragraphs) and list of additional
             results (pages title and link).
+
+        Raises:
+            WikiDBPageNotFound: If searcher not found page in database.
         """
 
         wiki_logger.db.info("Searching in database started")
@@ -143,7 +171,7 @@ class WikiDBSearcher:
 
         if page is None:
             wiki_logger.db.warning("Page not found in database")
-            raise WikiDBPageNotFound
+            return
 
         simple_results = cls.__simple_results_converter(page, search_params.mode)
 
@@ -169,6 +197,9 @@ class WikiDBSearcher:
 
         Returns:
             None
+
+        Raises:
+            DBAPIError: If failed to save result in database.
         """
 
         if result.simple_results:
@@ -185,10 +216,10 @@ class WikiDBSearcher:
 
                 except DBAPIError as er:
                     wiki_logger.db.critical(f"Failed to save page to database:\n{er}")
-                    return
+                    raise
 
             else:
-                wiki_logger.db.info("This page already exist")
+                wiki_logger.db.warning("This page already exist")
 
             query_id = await orm.select_query_id(query, result.lang, page_id)
             if query_id is None:
@@ -198,10 +229,10 @@ class WikiDBSearcher:
 
                 except DBAPIError as er:
                     wiki_logger.db.critical(f"Failed to save search query to database:\n{er}")
-                    return
+                    raise
 
             else:
-                wiki_logger.db.info("Search query already exist")
+                wiki_logger.db.warning("Search query already exist")
 
             wiki_logger.db.info(f"Result saved in {timer.stop()} sec")
 
@@ -210,7 +241,7 @@ class WikiDBSearcher:
             cls,
             page: WikiDBPages,
             search_mode: int
-    ) -> list[WikiSimpleResult] | None:
+    ) -> Union[list[WikiSimpleResult], None]:
         """
         Converts advanced search results to the :code:`WikiSimpleSearchResult` class
 

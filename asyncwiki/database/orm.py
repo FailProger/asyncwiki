@@ -4,11 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .tables import WikiDBPages, WikiDBQueries
 
 from ..types import WikiResult
-from ..utils.wikiSyncDef import results_preparer
+from ..utils import results_preparer
 
 
 __all__ = (
-    "WikiDBOrm"
+    "WikiDBOrm",
 )
 
 
@@ -38,6 +38,7 @@ class WikiDBOrm:
         session: Object of SQLAlchemy :code:`AsyncSession`, not open ORM session. It will be opened later.
     """
 
+    # Magic methods
     def __init__(self, session: AsyncSession) -> None:
         self.__session = session
 
@@ -52,10 +53,12 @@ class WikiDBOrm:
 
         await self.__session.__aexit__(exc_type, exc_val, exc_tb)
 
+    # Getters
     @property
     def session(self) -> AsyncSession:
         return self.__session
 
+    # Main methods
     async def add_page(self, page: WikiResult) -> WikiDBPages:
         """
         Add new Wikipedia page in database. Before preparing advanced search results.

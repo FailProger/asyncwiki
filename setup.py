@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 with open("README.md", "r", encoding="UTF-8") as file:
     long_description = file.read()
@@ -35,6 +35,6 @@ setup(
         "License :: OSI Approved :: MIT License"
     ],
     packages=find_packages(),
-    python_requires = ">=3.10",
+    python_requires = ">=3.9",
     install_requires=requires_list
 )

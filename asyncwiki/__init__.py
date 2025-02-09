@@ -3,7 +3,7 @@ from .searchers import *
 from . import (
     database,
     exc,
-    logger,
+    loggers,
     params,
     types
 )
@@ -17,5 +17,5 @@ __all__: tuple[str, ...] = (
 )
 
 __all__ += searchers.__all__
-__all__ += logger.__all__
+__all__ += loggers.__all__
 __all__ += params.__all__

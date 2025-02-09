@@ -21,14 +21,6 @@ class WikiScraperExc(WikiWebExc):
 ########################################################################################################################
 
 
-class _WikiUseAPIScrapperExc(WikiScraperExc):
-    """Raise when need use API scraper"""
-    pass
-
-
-########################################################################################################################
-
-
 class WikiRequestExc(WikiScraperExc):
     """Class of HTTP request exceptions"""
     pass
@@ -80,11 +72,6 @@ class WikiDBExc(WikiExc):
     pass
 
 
-class _WikiNotUseDBSearch(WikiDBExc):
-    """Raise if search in database not use"""
-    pass
-
-
-class WikiDBPageNotFound(WikiDBExc):
-    """Raise if page not found in database"""
-    pass
+# class WikiDBPageNotFound(WikiDBExc):
+#     """Raise if page not found in database"""
+#     pass

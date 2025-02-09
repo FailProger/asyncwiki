@@ -1,4 +1,8 @@
+from typing import Union, Optional
+
 from spellchecker import SpellChecker as _SpellChecker
+
+from bs4 import BeautifulSoup
 
 from .params import (
     WikiSearchParams,
@@ -8,11 +12,16 @@ from .params import (
 )
 
 from .config import (
-    wiki_answer_template,
-    wiki_query_clean_list,
+    title_tag,
+    summary_tag,
+    page_url_tag,
+    srtitle_tag_name,
+    simple_results_tag,
+    default_answer_template,
+    query_clean_list,
     wiki_page_url
 )
-from .logger import wiki_logger
+from .loggers import wiki_logger
 
 
 __all__ = (
@@ -33,6 +42,7 @@ class WikiQuery:
         search_params: Parameters of searchin, need for correct cleaning.
     """
 
+    # Magic methods
     def __init__(self, query: str, lang: str, search_params: WikiSearchParams) -> None:
 
         self.__raw_query = query
@@ -42,6 +52,7 @@ class WikiQuery:
         self.__is_link = self.__link_checker()
         self.__query = self.__clean()
 
+    # Getters
     @property
     def raw_query(self) -> str:
         return self.__raw_query
@@ -62,6 +73,7 @@ class WikiQuery:
     def query(self) -> str:
         return self.__query
 
+    # Main methods
     def __link_checker(self) -> bool:
         """
         Checks the search query is a link to a Wikipedia page or not.
@@ -111,7 +123,7 @@ class WikiQuery:
         spell_split = spell.split_words(raw_query)  # Separates words by removing spaces and characters
 
         # Filtering unnecessary words
-        words_list = [word if word.lower() not in wiki_query_clean_list else ... for word in spell_split]
+        words_list = [word if word.lower() not in query_clean_list else ... for word in spell_split]
         result = "_".join(words_list)
 
         # Add here machine learning for correctly work!!!
@@ -135,11 +147,13 @@ class WikiSimpleResult:
 
     __wiki_folder = "/wiki/"
 
+    # Magic methods
     def __init__(self, title: str, raw_link: str, lang: str) -> None:
         self.title = title
         self.__lang = lang
         self.raw_link = raw_link
 
+    # Getters and setters
     @property
     def lang(self) -> str:
         return self.__lang
@@ -165,6 +179,7 @@ class WikiSimpleResult:
     def link(self) -> str:
         return self.__link
 
+    # Main methods
     def html_text(self) -> str:
         """Return html text with clean link to article."""
 
@@ -183,13 +198,14 @@ class WikiResult:
         simple_results: Advanced search results.
     """
 
+    # Magic methods
     def __init__(
             self,
             key: str,
             title: str,
             lang: str,
             summary: str,
-            simple_results: list[WikiSimpleResult] | None = None
+            simple_results: Optional[list[WikiSimpleResult]] = None
     ) -> None:
 
         self.__key = key
@@ -202,6 +218,7 @@ class WikiResult:
     def __str__(self) -> str:
         return self.compile()
 
+    # Getters and setters
     @property
     def key(self) -> str:
         return self.__key
@@ -215,11 +232,11 @@ class WikiResult:
         return self.__url
 
     @property
-    def simple_results(self) -> list[WikiSimpleResult] | None:
+    def simple_results(self) -> Union[list[WikiSimpleResult], None]:
         return self.__simple_results
 
     @simple_results.setter
-    def simple_results(self, simple_results: list[WikiSimpleResult] | None) -> None:
+    def simple_results(self, simple_results: list[WikiSimpleResult]) -> None:
         if type(simple_results) is list:
             for result in simple_results:
                 if result.title.lower() == self.title.lower():
@@ -227,39 +244,54 @@ class WikiResult:
 
         self.__simple_results = simple_results[:5] if simple_results else None
 
-    def compile(self) -> str:
+    # Main methods
+    def compile(self, template: str = default_answer_template) -> str:
         """
-        Remove some extra signs and compile text according to a template.
+        Apply a template to :code:`WikiResult`.
+
+        Args:
+            template: Your template.
 
         Returns:
-            Beautiful html text
+            Beautiful compiled text
         """
 
-        summary = self.summary.replace(" < ", " ").replace(" > ", " ")
+        simple_results = self.simple_results
 
-        if type(self.simple_results) is list:
-            answer_text = "".join(wiki_answer_template)
+        soup = BeautifulSoup(template, "lxml")
+        srtitle = str(soup.find(srtitle_tag_name))
 
-            if len(self.simple_results) != 0:
-                simple_results = "\n".join([result.html_text() for result in self.simple_results])
+        if type(simple_results) is list:
+            if srtitle:
+                clear_srtitle = (
+                    srtitle.
+                    replace(f"<{srtitle_tag_name}>", "").
+                    replace(f"</{srtitle_tag_name}>", "")
+                )
+                template = template.replace(srtitle, clear_srtitle)
+
+            if len(simple_results) != 0:
+                template = template.replace(
+                    simple_results_tag, "\n".join([result.html_text() for result in simple_results])
+                )
 
             else:
-                simple_results = "Увы, но ничего не нашлось"
-
-            text = answer_text.format(self.title, summary, self.url, simple_results)
+                ops_text = (
+                    "Увы, но ничего не нашлось" if self.lang == "ru" else "Sorry, but anything not be found"
+                )
+                template = template.replace(simple_results_tag, ops_text)
 
         else:
-            answer_text = "".join(wiki_answer_template[:-2])
-            text = answer_text.format(self.title, summary, self.url)[:-1]
+            if srtitle:
+                template = template.replace(srtitle, "")
 
-        return text
+            template = template.replace(simple_results_tag, "")
 
-    def get_titles(self) -> list[str]:
-        """
-        Return list of simple pages title.
+        template = (
+            template.
+            replace(title_tag, self.title).
+            replace(summary_tag, self.summary.replace(" < ", " ").replace(" > ", " ")).
+            replace(page_url_tag, self.url)
+        )
 
-        Returns:
-            List of pages title.
-        """
-
-        return [res.title for res in self.simple_results] if self.simple_results else []
+        return template
